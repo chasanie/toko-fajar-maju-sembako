@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Toko Fajar Maju Sembako</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+        }
+        .login-box {
+            background: #fff;
+            padding: 48px 40px;
+            border-radius: 20px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        .logo-area { text-align:center; margin-bottom:32px; }
+        .logo-area .icon { font-size:48px; margin-bottom:8px; }
+        .logo-area h1 { font-size:24px; font-weight:800; color:#0f172a; }
+        .logo-area p { color:#64748b; font-size:14px; }
+        .form-group { margin-bottom:16px; }
+        .form-group label { display:block; font-weight:600; font-size:13px; color:#0f172a; margin-bottom:4px; }
+        .form-group input {
+            width:100%; padding:12px 16px; border:2px solid #e2e8f0;
+            border-radius:10px; font-size:14px; font-family:'Inter',sans-serif;
+            transition:0.2s;
+        }
+        .form-group input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
+        .btn-login {
+            width:100%; padding:14px; background:#3b82f6; color:#fff;
+            border:none; border-radius:10px; font-weight:700; font-size:16px;
+            cursor:pointer; transition:0.2s; margin-top:8px;
+        }
+        .btn-login:hover { background:#2563eb; box-shadow:0 4px 14px rgba(59,130,246,0.35); }
+        .btn-login:disabled { opacity:0.6; cursor:not-allowed; }
+        .error-msg { color:#dc2626; font-size:13px; margin-top:8px; text-align:center; display:none; }
+        .error-msg.show { display:block; }
+        .register-link { text-align:center; margin-top:16px; font-size:14px; color:#64748b; }
+        .register-link a { color:#3b82f6; text-decoration:none; font-weight:600; }
+        .register-link a:hover { text-decoration:underline; }
+        .version { text-align:center; margin-top:20px; font-size:12px; color:#94a3b8; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="logo-area">
+            <div class="icon">🛒</div>
+            <h1>Toko Fajar Maju Sembako</h1>
+            <p>Silakan login untuk melanjutkan</p>
+        </div>
+        <div class="form-group">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" placeholder="admin@tokofajar.com" value="admin@tokofajar.com" />
+        </div>
+        <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Masukkan password" value="admin123" onkeydown="if(event.key==='Enter'){doLogin();}" />
+        </div>
+        <button class="btn-login" id="btnLogin" onclick="doLogin()">
+            <i class="fas fa-sign-in-alt"></i> Login
+        </button>
+        <div class="error-msg" id="loginError"></div>
+        <div class="register-link">
+            Belum punya akun? <a href="register.html">Daftar di sini</a>
+        </div>
+        <div class="version">v3.0 &bull; Toko Fajar Maju Sembako</div>
+    </div>
+
+    <script>
+        const supabaseUrl = '{{VITE_SUPABASE_URL}}';
+        const supabaseAnonKey = '{{VITE_SUPABASE_ANON_KEY}}';
+        const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        async function doLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const errorEl = document.getElementById('loginError');
+            
+            if (!email || !password) {
+                errorEl.textContent = 'Email dan password wajib diisi';
+                errorEl.classList.add('show');
+                return;
+            }
+            
+            errorEl.classList.remove('show');
+            document.getElementById('btnLogin').disabled = true;
+            document.getElementById('btnLogin').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) throw new Error(error.message);
+                
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', data.user.id)
+                    .single();
+                
+                if (userError || !userData) {
+                    await supabase.auth.signOut();
+                    throw new Error('Akun belum dikonfigurasi. Hubungi admin.');
+                }
+                
+                if (!userData.aktif) {
+                    await supabase.auth.signOut();
+                    throw new Error('Akun tidak aktif. Hubungi admin.');
+                }
+                
+                localStorage.setItem('session', JSON.stringify({
+                    token: data.session.access_token,
+                    refreshToken: data.session.refresh_token,
+                    user: userData,
+                    cabangId: userData.cabang_id,
+                    expiresAt: data.session.expires_at
+                }));
+                
+                window.location.href = '/index.html';
+                
+            } catch (e) {
+                document.getElementById('btnLogin').disabled = false;
+                document.getElementById('btnLogin').innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                errorEl.textContent = e.message;
+                errorEl.classList.add('show');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('loginEmail').value = 'admin@tokofajar.com';
+            document.getElementById('loginPassword').value = 'admin123';
+        });
+
+        window.doLogin = doLogin;
+    </script>
+</body>
+</html>

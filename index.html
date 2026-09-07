@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>POS - Toko Fajar Maju Sembako</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<!-- ========== LOADING OVERLAY ========== -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner-box">
+        <div class="loader"></div>
+        <p id="loadingText">Memproses...</p>
+    </div>
+</div>
+
+<!-- ========== NOTIFICATION TOAST ========== -->
+<div id="notifContainer"></div>
+
+<!-- ========== LOGIN SCREEN ========== -->
+<div id="loginScreen">
+    <div class="login-box">
+        <div class="logo-area">
+            <div class="icon">🛒</div>
+            <h1 id="loginTitle">Toko Fajar Maju Sembako</h1>
+            <p>Silakan login untuk melanjutkan</p>
+        </div>
+        <div class="form-group">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" placeholder="admin@tokofajar.com" value="admin@tokofajar.com" />
+        </div>
+        <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Masukkan password" value="admin123" onkeydown="if(event.key==='Enter'){window.doLogin();}" />
+        </div>
+        <button class="btn-login" id="btnLogin" onclick="window.doLogin()">
+            <i class="fas fa-sign-in-alt"></i> Login
+        </button>
+        <div class="error-msg" id="loginError"></div>
+    </div>
+</div>
+
+<!-- ========== SIDEBAR ========== -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo" id="logoContainer"><span>🛒</span></div>
+        <div class="toko-info">
+            <div class="nama-toko" id="namaToko">Toko Fajar Maju Sembako</div>
+            <span class="role-badge" id="roleBadge">Administrator</span>
+        </div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-label">Menu Utama</div>
+        <a class="menu-item active" data-page="dashboard" onclick="window.gantiHalaman('dashboard')"><i class="fas fa-chart-pie"></i> Dashboard</a>
+        <a class="menu-item" data-page="kasir" onclick="window.gantiHalaman('kasir')"><i class="fas fa-cash-register"></i> Kasir</a>
+        <a class="menu-item" data-page="stok" onclick="window.gantiHalaman('stok')"><i class="fas fa-boxes"></i> Stok Barang</a>
+        <a class="menu-item" data-page="laporan" onclick="window.gantiHalaman('laporan')"><i class="fas fa-chart-bar"></i> Laporan</a>
+        <div class="nav-label" style="margin-top:12px;">Manajemen</div>
+        <a class="menu-item" data-page="cabang" onclick="window.gantiHalaman('cabang')"><i class="fas fa-store"></i> Cabang</a>
+        <a class="menu-item" data-page="pengguna" onclick="window.gantiHalaman('pengguna')"><i class="fas fa-users"></i> Pengguna</a>
+        <a class="menu-item" data-page="hutang" onclick="window.gantiHalaman('hutang')"><i class="fas fa-hand-holding-usd"></i> Hutang/Piutang</a>
+        <a class="menu-item" data-page="pengaturan" onclick="window.gantiHalaman('pengaturan')"><i class="fas fa-cog"></i> Pengaturan</a>
+    </nav>
+    <div class="sidebar-footer">v3.0 &bull; Toko Fajar Maju Sembako</div>
+</aside>
+
+<!-- ========== MAIN CONTENT ========== -->
+<main class="main">
+    <header class="topbar">
+        <div class="left">
+            <button id="toggleSidebar" style="background:none;border:none;font-size:24px;color:#0f172a;display:none;cursor:pointer;">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="page-title" id="pageTitle">Dashboard <span id="nomorTransaksi">-</span></div>
+        </div>
+        <div class="right">
+            <span class="cabang-info"><i class="fas fa-store"></i> <span id="cabangNama">Toko Pusat</span></span>
+            <div style="position:relative;display:inline-block;">
+                <button class="notif-bell" onclick="window.toggleNotifDropdown()">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge" id="notifBadge">0</span>
+                </button>
+                <div class="notif-dropdown" id="notifDropdown">
+                    <div class="notif-header">
+                        <h4>Notifikasi</h4>
+                        <button onclick="window.semuaDibaca()">Tandai semua dibaca</button>
+                    </div>
+                    <div class="notif-list" id="notifList">
+                        <div style="padding:16px;text-align:center;color:#94a3b8;">Tidak ada notifikasi</div>
+                    </div>
+                </div>
+            </div>
+            <div class="user-info">
+                <div class="avatar" id="userAvatar">A</div>
+                <div class="user-detail">
+                    <div class="name" id="userName">Administrator</div>
+                    <div class="role" id="userRole">Admin</div>
+                </div>
+            </div>
+            <button class="btn-logout" onclick="window.doLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </header>
+
+    <section class="content" id="contentArea">
+        <!-- ========== DASHBOARD VIEW ========== -->
+        <div id="view-dashboard">
+            <div class="dashboard-grid" id="dashboardCards"><div class="loader" style="grid-column:span 4;"></div></div>
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px;">
+                <div class="view-card">
+                    <h4 style="margin-bottom:12px;">📈 Grafik Penjualan 7 Hari Terakhir</h4>
+                    <div class="chart-container"><canvas id="grafikCanvas"></canvas></div>
+                </div>
+                <div class="view-card">
+                    <h4 style="margin-bottom:12px;">🏆 Produk Terlaris Hari Ini</h4>
+                    <div id="produkTerlarisContainer"><div class="loader"></div></div>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+                <div class="view-card"><h4 style="margin-bottom:12px;">⚠️ Stok Menipis</h4><div id="stokMenipisContainer"><div class="loader"></div></div></div>
+                <div class="view-card"><h4 style="margin-bottom:12px;">📅 Kadaluarsa Mendekat</h4><div id="kadaluarsaContainer"><div class="loader"></div></div></div>
+                <div class="view-card"><h4 style="margin-bottom:12px;">📊 Statistik Cepat</h4><div id="statistikCepatContainer"><div class="loader"></div></div></div>
+            </div>
+        </div>
+
+        <!-- ========== KASIR VIEW ========== -->
+        <div id="view-kasir" style="display:none;" class="kasir-layout">
+            <div class="produk-panel">
+                <div class="toolbar">
+                    <div class="search-box"><i class="fas fa-search"></i><input type="text" id="searchProduk" placeholder="Cari produk..." oninput="window.filterProduk(this.value)" /></div>
+                    <button class="btn-scan" onclick="window.scanBarcode()"><i class="fas fa-qrcode"></i> Scan</button>
+                </div>
+                <div class="grid-produk" id="produkGrid"><div class="loader"></div></div>
+            </div>
+            <div class="keranjang-panel">
+                <div class="header-keranjang"><h3><i class="fas fa-shopping-cart" style="margin-right:8px;color:#3b82f6;"></i> Keranjang</h3><span class="jumlah-item" id="jumlahItem">0 item</span></div>
+                <div class="daftar-item" id="daftarKeranjang"><div class="empty-state"><i class="fas fa-shopping-cart" style="font-size:32px;"></i><h4>Keranjang kosong</h4><p style="font-size:13px;">Klik produk untuk menambahkan</p></div></div>
+                <div class="total-section">
+                    <div class="total-row grand">Total <span class="nominal" id="totalBayar">Rp 0</span></div>
+                    <div class="total-row"><span>Item</span><span id="totalItem">0</span></div>
+                    <div class="total-row" style="margin-bottom:12px;"><span>Metode Bayar</span>
+                        <select id="metodeBayar" style="padding:4px 8px;border-radius:6px;border:1px solid #e2e8f0;font-family:'Inter',sans-serif;">
+                            <option value="Tunai">Tunai</option><option value="QRIS">QRIS</option><option value="Transfer">Transfer</option>
+                        </select>
+                    </div>
+                    <div class="aksi-bayar">
+                        <button class="btn-bayar" id="btnBayar" onclick="window.prosesTransaksi()"><i class="fas fa-check"></i> Bayar</button>
+                        <button class="btn-batal" onclick="window.batalTransaksi()"><i class="fas fa-times"></i> Batal</button>
+                        <button class="btn-cetak" onclick="window.cetakStruk()"><i class="fas fa-print"></i> Cetak</button>
+                        <button class="btn-cetak" onclick="window.cetakStrukBluetooth()" style="background:#0f172a;color:#fff;"><i class="fas fa-bluetooth"></i> Cetak BT</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== STOK VIEW ========== -->
+        <div id="view-stok" style="display:none;">
+            <div class="view-card">
+                <div class="view-header">
+                    <h2><i class="fas fa-boxes" style="color:#3b82f6;"></i> Manajemen Stok Barang</h2>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn-tambah" onclick="window.tampilFormTambahBarang()"><i class="fas fa-plus"></i> Tambah Barang</button>
+                        <button class="btn-tambah" onclick="window.tampilFormImportCSV()" style="background:#f59e0b;"><i class="fas fa-file-import"></i> Import CSV</button>
+                        <button class="btn-tambah btn-success" onclick="window.exportStokExcel()"><i class="fas fa-file-excel"></i> Export Excel</button>
+                    </div>
+                </div>
+                <div id="stokTableContainer"><div class="loader"></div></div>
+            </div>
+        </div>
+
+        <!-- ========== LAPORAN VIEW ========== -->
+        <div id="view-laporan" style="display:none;">
+            <div class="view-card">
+                <div class="view-header">
+                    <h2><i class="fas fa-chart-bar" style="color:#3b82f6;"></i> Laporan Penjualan</h2>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <select id="periodeLaporan" style="padding:8px 12px;border-radius:8px;border:1px solid #e2e8f0;font-family:'Inter',sans-serif;">
+                            <option value="hari">Hari Ini</option><option value="minggu">Minggu Ini</option><option value="bulan">Bulan Ini</option><option value="semua">Semua</option>
+                        </select>
+                        <button class="btn-tambah" onclick="window.loadLaporan()" style="padding:8px 16px;font-size:13px;"><i class="fas fa-sync"></i> Refresh</button>
+                        <button class="btn-tambah btn-success" onclick="window.exportExcel()" style="padding:8px 16px;font-size:13px;"><i class="fas fa-file-excel"></i> Export Excel</button>
+                    </div>
+                </div>
+                <div id="laporanContainer"><div class="loader"></div></div>
+            </div>
+        </div>
+
+        <!-- ========== CABANG VIEW ========== -->
+        <div id="view-cabang" style="display:none;">
+            <div class="view-card">
+                <div class="view-header">
+                    <h2><i class="fas fa-store" style="color:#3b82f6;"></i> Manajemen Cabang</h2>
+                    <button class="btn-tambah" onclick="window.tampilFormTambahCabang()"><i class="fas fa-plus"></i> Tambah Cabang</button>
+                </div>
+                <div id="cabangTableContainer"><div class="loader"></div></div>
+                <hr style="margin:24px 0;border-color:#f1f5f9;">
+                <h4 style="margin-bottom:16px;">📊 Statistik Hari Ini Per Cabang</h4>
+                <div id="cabangStatistikContainer"><div class="loader"></div></div>
+            </div>
+        </div>
+
+        <!-- ========== PENGGUNA VIEW ========== -->
+        <div id="view-pengguna" style="display:none;">
+            <div class="view-card">
+                <div class="view-header">
+                    <h2><i class="fas fa-users" style="color:#3b82f6;"></i> Manajemen Pengguna</h2>
+                    <button class="btn-tambah" onclick="window.tampilFormTambahUser()"><i class="fas fa-plus"></i> Tambah User</button>
+                </div>
+                <div id="userTableContainer"><div class="loader"></div></div>
+            </div>
+        </div>
+
+        <!-- ========== HUTANG/PIUTANG VIEW ========== -->
+        <div id="view-hutang" style="display:none;">
+            <div class="view-card">
+                <div class="view-header">
+                    <h2><i class="fas fa-hand-holding-usd" style="color:#3b82f6;"></i> Hutang & Piutang</h2>
+                    <button class="btn-tambah" onclick="window.tampilFormTambahHP()"><i class="fas fa-plus"></i> Tambah Data</button>
+                </div>
+                <div id="hpTableContainer"><div class="loader"></div></div>
+            </div>
+        </div>
+
+        <!-- ========== PENGATURAN VIEW ========== -->
+        <div id="view-pengaturan" style="display:none;">
+            <div class="view-card">
+                <div class="view-header"><h2><i class="fas fa-cog" style="color:#3b82f6;"></i> Pengaturan Toko</h2></div>
+                <div id="pengaturanContainer"><div class="loader"></div></div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ========== MODAL ========== -->
+<div id="modalOverlay">
+    <div class="modal-box">
+        <div class="modal-header"><h3 id="modalTitle">Tambah Data</h3><button class="modal-close" onclick="window.tutupModal()">&times;</button></div>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<!-- ========== MODAL SCANNER BARCODE ========== -->
+<div id="scannerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:3000;align-items:center;justify-content:center;flex-direction:column;padding:20px;">
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:500px;width:100%;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="font-size:18px;font-weight:700;color:#0f172a;"><i class="fas fa-qrcode"></i> Scan Barcode</h3>
+            <button onclick="window.stopScanner()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94a3b8;">&times;</button>
+        </div>
+        <div id="scannerContainer" style="width:100%;aspect-ratio:1/1;background:#000;border-radius:12px;overflow:hidden;position:relative;">
+            <div id="scannerReader" style="width:100%;height:100%;"></div>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border:3px solid #3b82f6;width:70%;height:70%;border-radius:8px;pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,0.3);"></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="window.startScanner()" style="flex:1;padding:10px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+                <i class="fas fa-play"></i> Mulai Scan
+            </button>
+            <button onclick="window.stopScanner()" style="flex:1;padding:10px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+                <i class="fas fa-stop"></i> Berhenti
+            </button>
+        </div>
+        <div style="margin-top:12px;">
+            <label style="font-weight:600;font-size:13px;">Atau Masukkan Manual</label>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+                <input type="text" id="manualBarcodeInput" placeholder="Ketik kode barcode..." style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-family:'Inter',sans-serif;" />
+                <button onclick="window.submitManualBarcode()" style="padding:10px 20px;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer;">
+                    <i class="fas fa-check"></i>
+                </button>
+            </div>
+        </div>
+        <div id="scannerResult" style="margin-top:8px;font-size:14px;color:#64748b;text-align:center;"></div>
+    </div>
+</div>
+
+<!-- ========== JAVASCRIPT ========== -->
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
